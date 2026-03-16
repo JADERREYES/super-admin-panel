@@ -19,7 +19,6 @@ api.interceptors.request.use(config => {
   console.log('🔑 Token presente:', !!token);
   
   if (token) {
-    // Mostrar primeros 20 caracteres del token para debug
     console.log('🔐 Token (primeros 20 chars):', token.substring(0, 20) + '...');
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -36,9 +35,12 @@ api.interceptors.response.use(
   error => {
     console.error(`❌ Error ${error.response?.status} en ${error.config?.url}`);
     console.error('Detalle:', error.response?.data);
+
+    const url = error.config?.url || "";
+    const esLogin = url.includes('/auth/admin/login');
     
-    if (error.response?.status === 401) {
-      console.log('🚫 Token inválido, redirigiendo a login');
+    if (error.response?.status === 401 && !esLogin) {
+      console.log('🚫 Token inválido o sesión expirada, redirigiendo a login');
       localStorage.removeItem("super_token");
       window.location.href = '/';
     }
