@@ -2,27 +2,38 @@ import { useEffect, useState } from "react";
 import api from "../api/api";
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import PauseIcon from '@mui/icons-material/Pause';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import ExtensionIcon from '@mui/icons-material/Extension';
 
 export default function Oficinas() {
   const [oficinas, setOficinas] = useState([]);
   const [nombre, setNombre] = useState("");
+  const [direccion, setDireccion] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cargando, setCargando] = useState(true);
   const [nuevasCredenciales, setNuevasCredenciales] = useState(null);
+  const [error, setError] = useState(null);
 
-  const cargar = async () => {
+  const cargarOficinas = async () => {
     try {
+      setCargando(true);
+      setError(null);
       console.log('Cargando oficinas...');
       const res = await api.get("/superadmin/oficinas");
       console.log('Oficinas cargadas:', res.data);
       setOficinas(res.data);
     } catch (error) {
       console.error("Error cargando oficinas:", error);
-      alert("Error al cargar las oficinas: " + (error.response?.data?.error || error.message));
+      setError(error.response?.data?.error || error.message);
+    } finally {
+      setCargando(false);
     }
   };
 
   useEffect(() => {
-    cargar();
+    cargarOficinas();
   }, []);
 
   const crear = async () => {
@@ -33,20 +44,25 @@ export default function Oficinas() {
 
     setLoading(true);
     try {
-      console.log('Creando oficina:', nombre);
+      console.log('Creando oficina:', { nombre, direccion, telefono });
       const res = await api.post("/superadmin/crear-oficina", {
-        nombre: nombre.trim()
+        nombre: nombre.trim(),
+        direccion: direccion.trim(),
+        telefono: telefono.trim()
       });
 
       console.log('Oficina creada:', res.data);
 
       setNuevasCredenciales({
         admin: res.data.admin,
-        cobrador: res.data.cobrador
+        cobrador: res.data.cobrador,
+        tenant: res.data.tenant
       });
 
       setNombre("");
-      await cargar();
+      setDireccion("");
+      setTelefono("");
+      await cargarOficinas();
     } catch (error) {
       console.error("Error creando oficina:", error);
       alert("Error creando oficina: " + (error.response?.data?.error || error.message));
@@ -56,26 +72,70 @@ export default function Oficinas() {
   };
 
   const eliminar = async (id) => {
-    if (!window.confirm("¿Estás seguro de eliminar esta oficina?")) return;
+    if (!window.confirm("⚠️ ¿Estás seguro de eliminar esta oficina? Esta acción eliminará TODOS los datos asociados (clientes, préstamos, cobradores).")) return;
 
     try {
       await api.delete("/superadmin/oficinas/" + id);
-      await cargar();
+      await cargarOficinas();
     } catch (error) {
       console.error("Error eliminando oficina:", error);
       alert("Error eliminando oficina: " + (error.response?.data?.error || error.message));
     }
   };
 
-  const toggle = async (id) => {
+  const toggleEstado = async (id) => {
     try {
       await api.put("/superadmin/oficinas/" + id);
-      await cargar();
+      await cargarOficinas();
     } catch (error) {
       console.error("Error cambiando estado:", error);
       alert("Error cambiando estado: " + (error.response?.data?.error || error.message));
     }
   };
+
+  if (cargando) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "400px" }}>
+        <div style={{
+          width: "50px",
+          height: "50px",
+          border: "3px solid rgba(108,60,240,0.3)",
+          borderTop: "3px solid #6c3cf0",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite"
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ textAlign: "center", padding: "40px" }}>
+        <h2 style={{ color: "#ff3cd6" }}>Error al cargar oficinas</h2>
+        <p style={{ color: "#fff" }}>{error}</p>
+        <button 
+          onClick={cargarOficinas}
+          style={{
+            marginTop: "20px",
+            padding: "10px 20px",
+            background: "linear-gradient(135deg, #6c3cf0, #ff3cd6)",
+            border: "none",
+            borderRadius: "8px",
+            color: "white",
+            cursor: "pointer"
+          }}
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -101,13 +161,13 @@ export default function Oficinas() {
         <h3 style={{ color: "#b8b8d4", marginBottom: "20px" }}>
           Crear Nueva Oficina
         </h3>
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
           <input
-            placeholder="Nombre de la oficina"
+            placeholder="Nombre de la oficina *"
             value={nombre}
             onChange={e => setNombre(e.target.value)}
             style={{
-              flex: 1,
+              width: "100%",
               padding: "12px 15px",
               background: "rgba(255,255,255,0.05)",
               border: "2px solid rgba(108,60,240,0.3)",
@@ -117,6 +177,38 @@ export default function Oficinas() {
               outline: "none"
             }}
           />
+          <div style={{ display: "flex", gap: "10px" }}>
+            <input
+              placeholder="Dirección"
+              value={direccion}
+              onChange={e => setDireccion(e.target.value)}
+              style={{
+                flex: 1,
+                padding: "12px 15px",
+                background: "rgba(255,255,255,0.05)",
+                border: "2px solid rgba(108,60,240,0.3)",
+                borderRadius: "10px",
+                color: "white",
+                fontSize: "16px",
+                outline: "none"
+              }}
+            />
+            <input
+              placeholder="Teléfono"
+              value={telefono}
+              onChange={e => setTelefono(e.target.value)}
+              style={{
+                flex: 1,
+                padding: "12px 15px",
+                background: "rgba(255,255,255,0.05)",
+                border: "2px solid rgba(108,60,240,0.3)",
+                borderRadius: "10px",
+                color: "white",
+                fontSize: "16px",
+                outline: "none"
+              }}
+            />
+          </div>
           <button
             onClick={crear}
             disabled={loading}
@@ -132,6 +224,7 @@ export default function Oficinas() {
               opacity: loading ? 0.5 : 1,
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: "8px"
             }}
           >
@@ -144,11 +237,11 @@ export default function Oficinas() {
       {/* Lista de oficinas */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
         gap: "20px"
       }}>
         {oficinas.length === 0 ? (
-          <p style={{ color: "#b8b8d4", textAlign: "center", gridColumn: "1/-1" }}>
+          <p style={{ color: "#b8b8d4", textAlign: "center", gridColumn: "1/-1", padding: "40px" }}>
             No hay oficinas creadas. ¡Crea la primera!
           </p>
         ) : (
@@ -161,9 +254,22 @@ export default function Oficinas() {
                 borderRadius: "15px",
                 padding: "20px",
                 border: `1px solid ${o.estado ? '#6c3cf0' : '#ff3cd6'}40`,
-                boxShadow: `0 0 20px ${o.estado ? '#6c3cf0' : '#ff3cd6'}20`
+                boxShadow: `0 0 20px ${o.estado ? '#6c3cf0' : '#ff3cd6'}20`,
+                transition: "all 0.3s",
+                position: "relative",
+                overflow: "hidden"
               }}
             >
+              <div style={{
+                position: "absolute",
+                top: -30,
+                right: -30,
+                width: "100px",
+                height: "100px",
+                background: `radial-gradient(circle, ${o.estado ? '#6c3cf0' : '#ff3cd6'}20, transparent)`,
+                borderRadius: "50%"
+              }} />
+
               <div style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -175,7 +281,7 @@ export default function Oficinas() {
                     {o.nombre}
                   </h3>
                   <p style={{
-                    fontSize: "12px",
+                    fontSize: "11px",
                     color: "#b8b8d4",
                     background: "rgba(108,60,240,0.1)",
                     padding: "3px 10px",
@@ -200,6 +306,26 @@ export default function Oficinas() {
                 </span>
               </div>
 
+              {(o.direccion || o.telefono) && (
+                <div style={{
+                  marginBottom: "15px",
+                  padding: "10px",
+                  background: "rgba(0,0,0,0.2)",
+                  borderRadius: "10px"
+                }}>
+                  {o.direccion && (
+                    <p style={{ fontSize: "12px", color: "#b8b8d4", marginBottom: "5px" }}>
+                      📍 {o.direccion}
+                    </p>
+                  )}
+                  {o.telefono && (
+                    <p style={{ fontSize: "12px", color: "#b8b8d4" }}>
+                      📞 {o.telefono}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div style={{
                 display: "flex",
                 gap: "10px",
@@ -208,7 +334,7 @@ export default function Oficinas() {
                 paddingTop: "15px"
               }}>
                 <button
-                  onClick={() => toggle(o._id)}
+                  onClick={() => toggleEstado(o._id)}
                   style={{
                     flex: 1,
                     padding: "8px",
@@ -219,24 +345,33 @@ export default function Oficinas() {
                     borderRadius: "8px",
                     color: o.estado ? "#f44336" : "#4caf50",
                     cursor: "pointer",
-                    fontSize: "14px",
-                    fontWeight: "bold"
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "5px"
                   }}
                 >
+                  {o.estado ? <PauseIcon style={{ fontSize: "16px" }} /> : <PlayArrowIcon style={{ fontSize: "16px" }} />}
                   {o.estado ? "DESACTIVAR" : "ACTIVAR"}
                 </button>
                 <button
                   onClick={() => eliminar(o._id)}
                   style={{
-                    padding: "8px 15px",
+                    padding: "8px 12px",
                     background: "rgba(244, 67, 54, 0.1)",
                     border: "1px solid #f44336",
                     borderRadius: "8px",
                     color: "#f44336",
-                    cursor: "pointer"
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px"
                   }}
+                  title="Eliminar"
                 >
-                  <DeleteIcon style={{ fontSize: "18px" }} />
+                  <DeleteIcon style={{ fontSize: "16px" }} />
                 </button>
               </div>
             </div>
@@ -267,11 +402,7 @@ export default function Oficinas() {
             maxWidth: "500px",
             width: "90%"
           }}>
-            <h2 style={{
-              fontSize: "28px",
-              marginBottom: "20px",
-              color: "#fff"
-            }}>
+            <h2 style={{ fontSize: "28px", marginBottom: "20px", color: "#fff" }}>
               🎉 ¡Oficina Creada!
             </h2>
             <p style={{ color: "#b8b8d4", marginBottom: "20px" }}>
@@ -300,8 +431,11 @@ export default function Oficinas() {
               <p style={{ marginBottom: "5px", color: "#fff" }}>
                 <strong>Email:</strong> {nuevasCredenciales.cobrador.email}
               </p>
-              <p style={{ color: "#fff" }}>
+              <p style={{ marginBottom: "5px", color: "#fff" }}>
                 <strong>Password:</strong> {nuevasCredenciales.cobrador.password}
+              </p>
+              <p style={{ fontSize: "11px", color: "#b8b8d4", marginTop: "10px" }}>
+                <strong>ID Oficina:</strong> {nuevasCredenciales.tenant?.tenantId}
               </p>
             </div>
 

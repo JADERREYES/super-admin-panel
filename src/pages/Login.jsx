@@ -1,200 +1,114 @@
-import { useState } from "react";
-import api from "../api/api";
+// src/pages/Login.jsx
+import React, { useState } from 'react';
+import { Form, Input, Button, Card, message, Typography } from 'antd';
+import { UserOutlined, LockOutlined, ShopOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { login } from '../api/superadmin';
 
-export default function Login() {
+const { Title, Text } = Typography;
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+const Login = () => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
-  /* =========================
-     LOGIN
-  ========================= */
-
-  const login = async (e) => {
-
-    // NUEVO: prevenir refresh del form
-    if (e) e.preventDefault();
-
-    if (!email || !password) {
-      setError("Por favor completa todos los campos");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
+  const onFinish = async (values) => {
     try {
-
-      console.log("1️⃣ Intentando login con:", email);
-
-      const res = await api.post("/auth/admin/login", {
-        email,
-        password
-      });
-
-      console.log("2️⃣ Respuesta del servidor:", res.data);
-
-      /* roles permitidos */
-
-      const rolesPermitidos = [
-        "superadmin",
-        "superadministrador",
-        "super_admin"
-      ];
-
-      if (!rolesPermitidos.includes(res.data.user.rol)) {
-
-        setError(`No tienes permisos de Super Admin. Tu rol es: ${res.data.user.rol}`);
-        setLoading(false);
-        return;
-
+      setLoading(true);
+      console.log('Intentando login con:', values.email);
+      
+      const response = await login(values.email, values.password);
+      console.log('Respuesta login:', response);
+      
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('userRole', response.user.rol);
+        localStorage.setItem('userName', response.user.nombre);
+        localStorage.setItem('userEmail', response.user.email);
+        
+        message.success('¡Bienvenido al Panel de Control Galáctico!');
+        navigate('/superadmin/dashboard');
       }
-
-      /* guardar token */
-
-      localStorage.setItem("super_token", res.data.token);
-
-      console.log("3️⃣ Token guardado correctamente");
-
-      /* redireccion */
-
-      window.location.href = "/";
-
-    } catch (err) {
-
-      console.error("❌ Error en login:", err);
-
-      setError(
-        err.response?.data?.error ||
-        "Error al iniciar sesión"
-      );
-
+    } catch (error) {
+      console.error('Error login:', error);
+      message.error(error.response?.data?.error || 'Error al iniciar sesión');
+    } finally {
       setLoading(false);
-
     }
-
   };
 
   return (
-
     <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "radial-gradient(ellipse at top, #1a1a3a, #0a0a1f)"
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     }}>
+      <Card
+        style={{
+          width: 400,
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+          borderRadius: 12
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <ShopOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+          <Title level={2} style={{ marginTop: 16, marginBottom: 8 }}>
+            Super Admin
+          </Title>
+          <Text type="secondary">Control Galáctico</Text>
+        </div>
 
-      <div style={{
-        background: "rgba(10,10,31,0.7)",
-        backdropFilter: "blur(10px)",
-        padding: "50px",
-        borderRadius: "30px",
-        border: "2px solid rgba(108,60,240,0.3)",
-        boxShadow: "0 0 100px rgba(108,60,240,0.3)",
-        width: "400px",
-        textAlign: "center"
-      }}>
-
-        <h1 style={{ fontSize: "48px", marginBottom: "20px" }}>
-          🚀
-        </h1>
-
-        <h2 style={{
-          background: "linear-gradient(135deg, #6c3cf0, #ff3cd6)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          fontSize: "32px",
-          marginBottom: "30px"
-        }}>
-          Acceso Galáctico
-        </h2>
-
-        {error && (
-          <div style={{
-            background: "rgba(255,0,0,0.1)",
-            border: "1px solid rgba(255,60,214,0.3)",
-            color: "#ff3cd6",
-            padding: "10px",
-            borderRadius: "10px",
-            marginBottom: "20px"
-          }}>
-            {error}
-          </div>
-        )}
-
-        {/* NUEVO: FORM */}
-        <form onSubmit={login}>
-
-          <input
-            placeholder="Email"
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            id="email"
+        <Form
+          name="login"
+          onFinish={onFinish}
+          autoComplete="off"
+          size="large"
+        >
+          <Form.Item
             name="email"
-            autoComplete="email"
-            style={{
-              width: "100%",
-              padding: "15px",
-              marginBottom: "15px",
-              background: "rgba(255,255,255,0.05)",
-              border: "2px solid rgba(108,60,240,0.3)",
-              borderRadius: "15px",
-              color: "white",
-              fontSize: "16px",
-              outline: "none"
-            }}
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            id="password"
-            name="password"
-            autoComplete="current-password"
-            style={{
-              width: "100%",
-              padding: "15px",
-              marginBottom: "25px",
-              background: "rgba(255,255,255,0.05)",
-              border: "2px solid rgba(108,60,240,0.3)",
-              borderRadius: "15px",
-              color: "white",
-              fontSize: "16px",
-              outline: "none"
-            }}
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "15px",
-              background: "linear-gradient(135deg, #6c3cf0, #ff3cd6)",
-              border: "none",
-              borderRadius: "15px",
-              color: "white",
-              fontSize: "18px",
-              fontWeight: "bold",
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.5 : 1
-            }}
+            rules={[
+              { required: true, message: 'Por favor ingrese su email' },
+              { type: 'email', message: 'Email no válido' }
+            ]}
           >
-            {loading ? "ACCEDIENDO..." : "ENTRAR AL SISTEMA"}
-          </button>
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="Email"
+              disabled={loading}
+            />
+          </Form.Item>
 
-        </form>
+          <Form.Item
+            name="password"
+            rules={[{ required: true, message: 'Por favor ingrese su contraseña' }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="Contraseña"
+              disabled={loading}
+            />
+          </Form.Item>
 
-      </div>
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              loading={loading}
+              style={{ height: 40 }}
+            >
+              Iniciar Sesión
+            </Button>
+          </Form.Item>
+        </Form>
 
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <Text type="secondary">Sistema de Gestión de Préstamos</Text>
+        </div>
+      </Card>
     </div>
-
   );
+};
 
-}
+export default Login;

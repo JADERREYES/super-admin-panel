@@ -1,27 +1,38 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Oficinas from "./pages/Oficinas";
-import Layout from "./components/Layout";
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { message } from 'antd';
+import Login from './pages/Login';
+import SuperAdminLayout from './components/superadmin/SuperAdminLayout';
+import './App.css';
+
+// Configurar mensajes globales
+message.config({
+  top: 100,
+  duration: 3,
+  maxCount: 3,
+});
 
 function App() {
-  const token = localStorage.getItem("super_token");
-
-  // Si no hay token, mostrar login
-  if (!token) {
-    return <Login />;
-  }
+  const isAuthenticated = localStorage.getItem('token');
+  const userRole = localStorage.getItem('userRole');
 
   return (
-    <BrowserRouter>
-      <Layout>
+    <div className="app">
+      <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/oficinas" element={<Oficinas />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route 
+            path="/superadmin/*" 
+            element={
+              isAuthenticated && userRole === 'superadmin' ? 
+              <SuperAdminLayout /> : 
+              <Navigate to="/login" />
+            } 
+          />
+          <Route path="/" element={<Navigate to="/login" />} />
         </Routes>
-      </Layout>
-    </BrowserRouter>
+      </BrowserRouter>
+    </div>
   );
 }
 

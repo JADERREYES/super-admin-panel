@@ -1,5 +1,6 @@
 import axios from "axios";
 
+// Usar import.meta.env para Vite
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 console.log('🌐 Super Admin API URL:', API_URL);
@@ -33,16 +34,18 @@ api.interceptors.response.use(
     return response;
   },
   error => {
-    console.error(`❌ Error ${error.response?.status} en ${error.config?.url}`);
-    console.error('Detalle:', error.response?.data);
-
+    console.error(`❌ Error en ${error.config?.url}:`);
+    console.error('   Status:', error.response?.status);
+    console.error('   Data:', error.response?.data);
+    console.error('   Message:', error.message);
+    
     const url = error.config?.url || "";
     const esLogin = url.includes('/auth/admin/login');
     
     if (error.response?.status === 401 && !esLogin) {
       console.log('🚫 Token inválido o sesión expirada, redirigiendo a login');
       localStorage.removeItem("super_token");
-      window.location.href = '/';
+      window.location.href = '/login';
     }
     
     return Promise.reject(error);
