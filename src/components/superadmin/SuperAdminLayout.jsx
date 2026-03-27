@@ -29,6 +29,14 @@ import './SuperAdminLayout.css';
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
+// Configuración de URLs desde variables de entorno
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Para WebSocket, removemos '/api' de la URL
+const SOCKET_URL = API_URL.replace('/api', '');
+
+console.log('🔧 API URL configurada:', API_URL);
+console.log('🔌 Socket URL configurada:', SOCKET_URL);
+
 const SuperAdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState('dashboard');
@@ -44,15 +52,17 @@ const SuperAdminLayout = () => {
 
   // Conexión Socket.io para notificaciones en tiempo real
   useEffect(() => {
-    const newSocket = io('http://localhost:5000', {
-      transports: ['websocket', 'polling'],
+    // Usar la URL de producción si está disponible
+    const newSocket = io(SOCKET_URL, {
+      transports: ['polling', 'websocket'], // Polling primero para mejor compatibilidad
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      timeout: 20000
     });
     
     newSocket.on('connect', () => {
-      console.log('✅ Conectado al servidor WebSocket');
+      console.log('✅ Conectado al servidor WebSocket en:', SOCKET_URL);
       newSocket.emit('join-superadmin');
     });
     
@@ -73,7 +83,7 @@ const SuperAdminLayout = () => {
     
     newSocket.on('connect_error', (error) => {
       console.error('❌ Error de conexión WebSocket:', error);
-      message.warning('Conectando al servidor de notificaciones...', 2);
+      console.log('⚠️ Las notificaciones en tiempo real no estarán disponibles');
     });
     
     setSocket(newSocket);
@@ -157,7 +167,7 @@ const SuperAdminLayout = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Función para enviar recordatorio por WebSocket (dentro de la app) - SOLO NOTIFICACIÓN, NO CORREO
+  // Función para enviar recordatorio por WebSocket (dentro de la app)
   const enviarRecordatorioApp = (empresa) => {
     if (socket && socket.connected) {
       console.log('📤 Enviando recordatorio a:', empresa.nombre);
@@ -177,7 +187,7 @@ const SuperAdminLayout = () => {
     }
   };
 
-  // Función para enviar recordatorio mensual (dentro de la app) - SOLO NOTIFICACIÓN, NO CORREO
+  // Función para enviar recordatorio mensual
   const enviarRecordatorioMensual = (empresa) => {
     if (socket && socket.connected) {
       socket.emit('enviar-recordatorio-mensual', {
@@ -291,7 +301,6 @@ const SuperAdminLayout = () => {
             <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
               Vence: {empresa.fechaVencimiento} | Adeuda: ${empresa.montoPendiente.toLocaleString()}
             </div>
-            {/* SOLO NOTIFICACIONES DENTRO DE LA APP - SIN CORREO */}
             <Space size={8}>
               <Button 
                 size="small" 
