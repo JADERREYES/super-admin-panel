@@ -23,7 +23,7 @@ import Dashboard from './Dashboard';
 import OficinasManager from './OficinasManager';
 import Reportes from './Reportes';
 import Configuracion from './Configuracion';
-import { getOficinas, cambiarEstadoOficina, getEmpresasMorosas } from '../../api/superadmin';
+import { cambiarEstadoOficina, getEmpresasMorosas } from '../../api/superadmin';
 import './SuperAdminLayout.css';
 
 const { Header, Sider, Content } = Layout;
@@ -104,64 +104,8 @@ const SuperAdminLayout = () => {
       setLoading(true);
       const morosas = await getEmpresasMorosas();
       setNotificaciones(morosas);
-      return;
-      
-      try {
-        const morosas = await getEmpresasMorosas();
-        if (morosas && morosas.length > 0) {
-          setNotificaciones(morosas);
-          if (morosas.length > 0) {
-            message.warning(`${morosas.length} empresa(s) con pagos pendientes`, 3);
-          }
-          return;
-        }
-      } catch (apiError) {
-        console.log('API de pagos no disponible, usando simulación');
-      }
-      
-      // Fallback: simulación
-      const oficinas = await getOficinas();
-      const hoy = new Date();
-      const morosas = [];
-      
-      for (const empresa of oficinas) {
-        if (!empresa.estado) continue;
-        
-        const fechaCreacion = new Date(empresa.fechaCreacion);
-        const diasDesdeCreacion = Math.floor((hoy - fechaCreacion) / (1000 * 60 * 60 * 24));
-        
-        if (diasDesdeCreacion >= 30) {
-          const fechaVencimiento = new Date(fechaCreacion);
-          fechaVencimiento.setMonth(fechaVencimiento.getMonth() + 1);
-          
-          if (fechaVencimiento <= hoy) {
-            const diasAtraso = Math.floor((hoy - fechaVencimiento) / (1000 * 60 * 60 * 24));
-            const empresasMorosasSimuladas = ['popayan2', 'cali22'];
-            if (empresasMorosasSimuladas.includes(empresa.tenantId?.toLowerCase())) {
-              morosas.push({
-                id: empresa._id,
-                nombre: empresa.nombre,
-                tenantId: empresa.tenantId,
-                fechaCreacion: empresa.fechaCreacion,
-                fechaVencimiento: fechaVencimiento.toISOString().split('T')[0],
-                diasAtraso: diasAtraso,
-                montoPendiente: 350000,
-                contacto: `admin@${empresa.tenantId}.com`,
-                estado: empresa.estado
-              });
-            }
-          }
-        }
-      }
-      
-      setNotificaciones(morosas);
-      
-      if (morosas.length > 0) {
-        message.warning(`${morosas.length} empresa(s) con pagos pendientes`, 3);
-      }
-      
     } catch (error) {
-      console.error('Error verificando pagos:', error);
+      console.error('Error verificando mensualidades morosas:', error);
       if (error.response?.status !== 401) {
         message.error(error.response?.data?.error || error.message || 'Error al cargar oficinas morosas');
       }

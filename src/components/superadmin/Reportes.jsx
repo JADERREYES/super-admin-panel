@@ -74,44 +74,8 @@ const Reportes = () => {
       setLoading(true);
       const morosas = await getEmpresasMorosas();
       setEmpresasMorosas(morosas);
-      return;
-
-      const token =
-        localStorage.getItem('token') ||
-        localStorage.getItem('super_token') ||
-        localStorage.getItem('superadmin_token');
-
-      const response = await fetch(`${API_URL}/superadmin/mensualidades/morosas`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      const data = await response.json();
-
-      console.log('📥 Datos reales de /pagos/pendientes:', data);
-
-      if (!response.ok) {
-        throw new Error(data.error || 'No se pudieron cargar las empresas pendientes');
-      }
-
-      const mensualidades = Array.isArray(data?.mensualidades) ? data.mensualidades : [];
-      const morosas = mensualidades.map((mensualidad) => ({
-        id: mensualidad.tenant?._id || mensualidad.tenantId,
-        nombre: mensualidad.tenant?.nombre || mensualidad.tenantId,
-        tenantId: mensualidad.tenantId,
-        periodo: mensualidad.periodo,
-        fechaVencimiento: mensualidad.fechaVencimiento,
-        diasAtraso: mensualidad.diasMora,
-        montoPendiente: mensualidad.monto,
-        contacto: `admin@${mensualidad.tenantId}.com`,
-        estado: mensualidad.estado
-      }));
-
-      setEmpresasMorosas(morosas);
     } catch (error) {
-      console.error('❌ Error cargando empresas morosas:', error);
+      console.error('Error cargando empresas morosas:', error);
       if (error.response?.status !== 401) {
         message.error(error.response?.data?.error || error.message || 'Error al cargar oficinas morosas');
       }
