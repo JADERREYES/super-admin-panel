@@ -44,6 +44,7 @@ import { getSuperAdminStats } from '../../api/superadmin';
 import io from 'socket.io-client';
 
 const { Title, Text } = Typography;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const Dashboard = ({ notificaciones = [] }) => {
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,12 @@ const Dashboard = ({ notificaciones = [] }) => {
     cargarEstadisticas();
     
     // Conectar WebSocket
-    const newSocket = io('http://localhost:5000');
+    const socketUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const newSocket = io(socketUrl, {
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
     newSocket.on('connect', () => {
       console.log('✅ Dashboard conectado a WebSocket');
       newSocket.emit('join-superadmin');
@@ -90,6 +96,36 @@ const Dashboard = ({ notificaciones = [] }) => {
 
   // Función para enviar recordatorio por WebSocket - SOLO APP, NO CORREO
   const enviarRecordatorioApp = (empresa) => {
+    const enviarPersistente = async () => {
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('super_token');
+        const response = await fetch(`${API_URL}/superadmin/mensualidades/${empresa.tenantId}/notificar`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            periodo: empresa.periodo,
+            titulo: 'Mensualidad vencida',
+            mensaje: `La mensualidad del periodo ${empresa.periodo} esta vencida. Dias de mora: ${empresa.diasAtraso}.`
+          })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'No se pudo enviar la notificacion');
+        }
+
+        message.success(`Recordatorio interno enviado a ${empresa.nombre}`);
+      } catch (error) {
+        message.error(error.message || 'Error al enviar la notificacion');
+      }
+    };
+
+    enviarPersistente();
+    return;
+
     if (socket && socket.connected) {
       socket.emit('enviar-recordatorio', {
         tenantId: empresa.tenantId,
@@ -106,6 +142,9 @@ const Dashboard = ({ notificaciones = [] }) => {
 
   // Función para enviar recordatorio mensual - SOLO APP, NO CORREO
   const enviarRecordatorioMensual = (empresa) => {
+    enviarRecordatorioApp(empresa);
+    return;
+
     if (socket && socket.connected) {
       socket.emit('enviar-recordatorio-mensual', {
         tenantId: empresa.tenantId,

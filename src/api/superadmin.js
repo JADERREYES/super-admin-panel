@@ -11,10 +11,28 @@ const api = axios.create({
   },
 });
 
+const getSuperadminToken = () => (
+  localStorage.getItem('token') ||
+  localStorage.getItem('super_token') ||
+  localStorage.getItem('superadmin_token')
+);
+
+const mapMensualidadMorosa = (mensualidad) => ({
+  id: mensualidad.tenant?._id || mensualidad.tenantId,
+  nombre: mensualidad.tenant?.nombre || mensualidad.tenantId,
+  tenantId: mensualidad.tenantId,
+  periodo: mensualidad.periodo,
+  fechaVencimiento: mensualidad.fechaVencimiento,
+  diasAtraso: mensualidad.diasMora || 0,
+  montoPendiente: mensualidad.monto || 0,
+  contacto: `admin@${mensualidad.tenantId}.com`,
+  estado: mensualidad.estado
+});
+
 // Interceptor para agregar token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getSuperadminToken();
     console.log(`📤 ${config.method.toUpperCase()} ${config.url}`, token ? '✅ Con token' : '❌ Sin token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -38,6 +56,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       console.log('🔐 Token expirado');
       localStorage.removeItem('token');
+      localStorage.removeItem('super_token');
+      localStorage.removeItem('superadmin_token');
       localStorage.removeItem('userRole');
       window.location.href = '/login';
     }
@@ -93,7 +113,14 @@ export const getDetalleOficina = async (id) => {
 // Obtener empresas con pagos pendientes
 export const getEmpresasMorosas = async () => {
   console.log('💰 Solicitando empresas con pagos pendientes...');
-  const response = await api.get('/pagos/pendientes');
+  const response = await api.get('/superadmin/mensualidades/morosas');
+  const mensualidades = response.data?.mensualidades || [];
+
+  return mensualidades.map(mapMensualidadMorosa);
+};
+
+export const notificarMensualidadMorosa = async (tenantId, data) => {
+  const response = await api.post(`/superadmin/mensualidades/${tenantId}/notificar`, data);
   return response.data;
 };
 

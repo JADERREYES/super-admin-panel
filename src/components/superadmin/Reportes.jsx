@@ -26,6 +26,7 @@ import {
   EditOutlined
 } from '@ant-design/icons';
 import io from 'socket.io-client';
+import { getEmpresasMorosas, notificarMensualidadMorosa } from '../../api/superadmin';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -50,6 +51,9 @@ const Reportes = () => {
     cargarEmpresasMorosas();
 
     const newSocket = io(SOCKET_URL, {
+      auth: {
+        token: localStorage.getItem('token')
+      },
       transports: ['websocket', 'polling']
     });
 
@@ -68,12 +72,16 @@ const Reportes = () => {
   const cargarEmpresasMorosas = async () => {
     try {
       setLoading(true);
+      const morosas = await getEmpresasMorosas();
+      setEmpresasMorosas(morosas);
+      return;
 
       const token =
         localStorage.getItem('token') ||
+        localStorage.getItem('super_token') ||
         localStorage.getItem('superadmin_token');
 
-      const response = await fetch(`${API_URL}/pagos/pendientes`, {
+      const response = await fetch(`${API_URL}/superadmin/mensualidades/morosas`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -88,10 +96,25 @@ const Reportes = () => {
         throw new Error(data.error || 'No se pudieron cargar las empresas pendientes');
       }
 
-      setEmpresasMorosas(Array.isArray(data) ? data : []);
+      const mensualidades = Array.isArray(data?.mensualidades) ? data.mensualidades : [];
+      const morosas = mensualidades.map((mensualidad) => ({
+        id: mensualidad.tenant?._id || mensualidad.tenantId,
+        nombre: mensualidad.tenant?.nombre || mensualidad.tenantId,
+        tenantId: mensualidad.tenantId,
+        periodo: mensualidad.periodo,
+        fechaVencimiento: mensualidad.fechaVencimiento,
+        diasAtraso: mensualidad.diasMora,
+        montoPendiente: mensualidad.monto,
+        contacto: `admin@${mensualidad.tenantId}.com`,
+        estado: mensualidad.estado
+      }));
+
+      setEmpresasMorosas(morosas);
     } catch (error) {
       console.error('❌ Error cargando empresas morosas:', error);
-      message.error(error.message || 'Error al cargar empresas con pagos pendientes');
+      if (error.response?.status !== 401) {
+        message.error(error.response?.data?.error || error.message || 'Error al cargar oficinas morosas');
+      }
       setEmpresasMorosas([]);
     } finally {
       setLoading(false);
@@ -267,26 +290,19 @@ Equipo de Administración - Gota a Gota`;
     try {
       const token =
         localStorage.getItem('token') ||
+        localStorage.getItem('super_token') ||
         localStorage.getItem('superadmin_token');
 
-      const endpoint =
-        tipoNotificacion === 'normal'
-          ? `${API_URL}/pagos/recordatorio`
-          : `${API_URL}/pagos/recordatorio-mensual`;
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_URL}/superadmin/mensualidades/${selectedEmpresa.tenantId}/notificar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          tenantId: selectedEmpresa.tenantId,
-          empresa: selectedEmpresa.nombre,
-          monto: values.monto,
-          diasAtraso: values.diasAtraso,
-          fechaVencimiento: selectedEmpresa.fechaVencimiento,
-          mensajePersonalizado: values.mensaje
+          periodo: selectedEmpresa.periodo,
+          titulo: tipoNotificacion === 'normal' ? 'Mensualidad vencida' : 'Recordatorio mensual',
+          mensaje: values.mensaje
         })
       });
 
