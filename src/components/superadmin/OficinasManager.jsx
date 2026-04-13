@@ -30,7 +30,8 @@ import {
   crearOficina,
   cambiarEstadoOficina,
   eliminarOficina,
-  getDetalleOficina
+  getDetalleOficina,
+  generarPinTelegramCobrador
 } from '../../api/superadmin';
 
 const { Title, Text, Paragraph } = Typography;
@@ -45,6 +46,7 @@ const OficinasManager = () => {
   const [selectedOficina, setSelectedOficina] = useState(null);
   const [detalleData, setDetalleData] = useState(null);
   const [nuevasCredenciales, setNuevasCredenciales] = useState(null);
+  const [telegramPin, setTelegramPin] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
   const [form] = Form.useForm();
 
@@ -124,6 +126,22 @@ const OficinasManager = () => {
       setDetailModalVisible(true);
     } catch (error) {
       message.error('Error al cargar detalle: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerarPinTelegram = async (cobrador) => {
+    try {
+      setLoading(true);
+      const pin = await generarPinTelegramCobrador(cobrador._id);
+      setTelegramPin({
+        cobrador,
+        ...pin
+      });
+      message.success('PIN Telegram generado correctamente');
+    } catch (error) {
+      message.error(error.response?.data?.error || error.message || 'Error al generar PIN Telegram');
     } finally {
       setLoading(false);
     }
@@ -376,6 +394,24 @@ const OficinasManager = () => {
                       {copiedField === 'cobrador_pass' ? 'Copiado!' : 'Copiar'}
                     </Button>
                   </Paragraph>
+                  {nuevasCredenciales.cobrador.telegramVinculacion && (
+                    <Paragraph>
+                      <Text strong>PIN Telegram:</Text><br />
+                      <Text code>{nuevasCredenciales.cobrador.telegramVinculacion.codigo}</Text>
+                      <Button
+                        type="link"
+                        icon={copiedField === 'telegram_pin' ? <CheckOutlined /> : <CopyOutlined />}
+                        onClick={() => copyToClipboard(nuevasCredenciales.cobrador.telegramVinculacion.codigo, 'telegram_pin')}
+                        size="small"
+                      >
+                        {copiedField === 'telegram_pin' ? 'Copiado!' : 'Copiar'}
+                      </Button>
+                      <br />
+                      <Text type="secondary">
+                        Vence: {new Date(nuevasCredenciales.cobrador.telegramVinculacion.expiraEn).toLocaleString()}
+                      </Text>
+                    </Paragraph>
+                  )}
                 </Card>
               </Col>
             </Row>
@@ -440,10 +476,56 @@ const OficinasManager = () => {
             
             <Card title="Cobradores" size="small" style={{ marginTop: 16 }}>
               {detalleData.cobradores?.map(cobrador => (
-                <p key={cobrador._id}>👤 {cobrador.nombre} - 📧 {cobrador.email}</p>
+                <div key={cobrador._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Space direction="vertical" size={0}>
+                    <Text>👤 {cobrador.nombre} - 📧 {cobrador.email}</Text>
+                    <Space size={4}>
+                      <Tag color={cobrador.telegramActivo ? 'green' : 'default'}>
+                        {cobrador.telegramActivo ? 'Telegram vinculado' : 'Telegram no vinculado'}
+                      </Tag>
+                      {cobrador.telegramUsername && <Text type="secondary">@{cobrador.telegramUsername}</Text>}
+                    </Space>
+                  </Space>
+                  <Button size="small" icon={<CopyOutlined />} onClick={() => handleGenerarPinTelegram(cobrador)}>
+                    Generar PIN Telegram
+                  </Button>
+                </div>
               ))}
             </Card>
           </Spin>
+        )}
+      </Modal>
+
+      <Modal
+        title="PIN Telegram generado"
+        open={Boolean(telegramPin)}
+        onCancel={() => setTelegramPin(null)}
+        footer={[
+          <Button key="copy" icon={<CopyOutlined />} onClick={() => copyToClipboard(telegramPin?.codigo || '', 'telegram_pin_modal')}>
+            Copiar PIN
+          </Button>,
+          <Button key="close" type="primary" onClick={() => setTelegramPin(null)}>
+            Entendido
+          </Button>
+        ]}
+      >
+        {telegramPin && (
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Alert
+              type="info"
+              showIcon
+              message="Entrega este PIN al cobrador"
+              description="El cobrador debe abrir Telegram y escribir /vincular CODIGO. Si habia un PIN activo anterior, el backend lo vencio y dejo vigente este nuevo PIN."
+            />
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label="Cobrador">{telegramPin.cobrador?.nombre || telegramPin.cobradorId}</Descriptions.Item>
+              <Descriptions.Item label="Email">{telegramPin.cobrador?.email || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Tenant">{telegramPin.tenantId}</Descriptions.Item>
+              <Descriptions.Item label="PIN"><Text code>{telegramPin.codigo}</Text></Descriptions.Item>
+              <Descriptions.Item label="Vence">{new Date(telegramPin.expiraEn).toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label="Comando Telegram"><Text code>{`/vincular ${telegramPin.codigo}`}</Text></Descriptions.Item>
+            </Descriptions>
+          </Space>
         )}
       </Modal>
     </div>

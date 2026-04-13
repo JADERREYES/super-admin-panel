@@ -110,6 +110,11 @@ export const getDetalleOficina = async (id) => {
   return response.data;
 };
 
+export const generarPinTelegramCobrador = async (cobradorId) => {
+  const response = await api.post(`/telegram/vinculacion/cobradores/${cobradorId}/generar-codigo`);
+  return response.data;
+};
+
 // Obtener empresas con pagos pendientes
 export const getEmpresasMorosas = async () => {
   console.log('💰 Solicitando empresas con pagos pendientes...');
