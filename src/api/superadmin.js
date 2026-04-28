@@ -110,8 +110,8 @@ export const getDetalleOficina = async (id) => {
   return response.data;
 };
 
-export const generarPinTelegramCobrador = async (cobradorId) => {
-  const response = await api.post(`/telegram/vinculacion/cobradores/${cobradorId}/generar-codigo`);
+export const generarPinTelegramCobrador = async (cobradorId, payload = {}) => {
+  const response = await api.post(`/telegram/vinculacion/cobradores/${cobradorId}/generar-codigo`, payload);
   return response.data;
 };
 

@@ -6,8 +6,10 @@ import {
   Modal,
   Form,
   Input,
+  InputNumber,
   message,
   Popconfirm,
+  Select,
   Tag,
   Card,
   Row,
@@ -50,6 +52,8 @@ const OficinasManager = () => {
   const [detalleData, setDetalleData] = useState(null);
   const [nuevasCredenciales, setNuevasCredenciales] = useState(null);
   const [telegramPin, setTelegramPin] = useState(null);
+  const [telegramModalVisible, setTelegramModalVisible] = useState(false);
+  const [telegramForm] = Form.useForm();
   const [copiedField, setCopiedField] = useState(null);
   const [form] = Form.useForm();
 
@@ -134,10 +138,26 @@ const OficinasManager = () => {
     }
   };
 
-  const handleGenerarPinTelegram = async (cobrador) => {
+  const openTelegramPinModal = (cobrador) => {
+    setTelegramPin({ cobrador });
+    telegramForm.setFieldsValue({
+      duracion: 24,
+      unidad: 'horas'
+    });
+    setTelegramModalVisible(true);
+  };
+
+  const handleGenerarPinTelegram = async () => {
     try {
+      const values = await telegramForm.validateFields();
+      const cobrador = telegramPin?.cobrador;
+      if (!cobrador?._id) {
+        message.error('No se encontró el cobrador seleccionado');
+        return;
+      }
+
       setLoading(true);
-      const pin = await generarPinTelegramCobrador(cobrador._id);
+      const pin = await generarPinTelegramCobrador(cobrador._id, values);
       setTelegramPin({
         cobrador,
         ...pin
@@ -502,8 +522,8 @@ const OficinasManager = () => {
                       {cobrador.telegramUsername && <Text type="secondary">@{cobrador.telegramUsername}</Text>}
                     </Space>
                   </Space>
-                  <Button size="small" icon={<CopyOutlined />} onClick={() => handleGenerarPinTelegram(cobrador)}>
-                    Generar PIN Telegram
+                  <Button size="small" icon={<CopyOutlined />} onClick={() => openTelegramPinModal(cobrador)}>
+                    Generar nuevo código
                   </Button>
                 </div>
               ))}
@@ -519,15 +539,34 @@ const OficinasManager = () => {
       />
 
       <Modal
-        title="PIN Telegram generado"
-        open={Boolean(telegramPin)}
-        onCancel={() => setTelegramPin(null)}
+        title="Generar código de vinculación Telegram"
+        open={telegramModalVisible}
+        onCancel={() => {
+          setTelegramModalVisible(false);
+          setTelegramPin(null);
+          telegramForm.resetFields();
+        }}
         footer={[
-          <Button key="copy" icon={<CopyOutlined />} onClick={() => copyToClipboard(telegramPin?.codigo || '', 'telegram_pin_modal')}>
-            Copiar PIN
+          <Button
+            key="copy"
+            icon={<CopyOutlined />}
+            onClick={() => copyToClipboard(telegramPin?.comando || `/vincular ${telegramPin?.codigo || ''}`, 'telegram_comando')}
+            disabled={!telegramPin?.codigo}
+          >
+            Copiar comando
           </Button>,
-          <Button key="close" type="primary" onClick={() => setTelegramPin(null)}>
-            Entendido
+          <Button key="generate" type="primary" loading={loading} onClick={handleGenerarPinTelegram}>
+            Generar nuevo código
+          </Button>,
+          <Button
+            key="close"
+            onClick={() => {
+              setTelegramModalVisible(false);
+              setTelegramPin(null);
+              telegramForm.resetFields();
+            }}
+          >
+            Cerrar
           </Button>
         ]}
       >
@@ -536,16 +575,66 @@ const OficinasManager = () => {
             <Alert
               type="info"
               showIcon
-              message="Entrega este PIN al cobrador"
-              description="El cobrador debe abrir Telegram y escribir /vincular CODIGO. Si habia un PIN activo anterior, el backend lo vencio y dejo vigente este nuevo PIN."
+              message="Entrega este código al cobrador"
+              description="El cobrador debe abrir Telegram y escribir /vincular CODIGO. Si había un código activo anterior, el backend lo venció y dejó vigente este nuevo código."
             />
+            <Form
+              form={telegramForm}
+              layout="vertical"
+              initialValues={{ duracion: 24, unidad: 'horas' }}
+            >
+              <Form.Item label="Cobrador">
+                <Text strong>{telegramPin.cobrador?.nombre || 'N/A'}</Text>
+              </Form.Item>
+              <Form.Item label="Duración del código" required style={{ marginBottom: 12 }}>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Form.Item
+                    name="duracion"
+                    noStyle
+                    rules={[
+                      { required: true, message: 'Ingresa la duración' },
+                      {
+                        validator: (_, value) => {
+                          if (value === undefined || value === null || value === '') {
+                            return Promise.reject(new Error('Ingresa la duración'));
+                          }
+                          if (!Number.isFinite(Number(value)) || Number(value) <= 0) {
+                            return Promise.reject(new Error('La duración debe ser un número positivo'));
+                          }
+                          return Promise.resolve();
+                        }
+                      }
+                    ]}
+                  >
+                    <InputNumber min={1} style={{ width: '40%' }} placeholder="24" />
+                  </Form.Item>
+                  <Form.Item
+                    name="unidad"
+                    noStyle
+                    rules={[{ required: true, message: 'Selecciona una unidad' }]}
+                  >
+                    <Select
+                      style={{ width: '60%' }}
+                      options={[
+                        { value: 'minutos', label: 'minutos' },
+                        { value: 'horas', label: 'horas' },
+                        { value: 'dias', label: 'días' }
+                      ]}
+                    />
+                  </Form.Item>
+                </Space.Compact>
+              </Form.Item>
+            </Form>
             <Descriptions column={1} bordered size="small">
               <Descriptions.Item label="Cobrador">{telegramPin.cobrador?.nombre || telegramPin.cobradorId}</Descriptions.Item>
               <Descriptions.Item label="Email">{telegramPin.cobrador?.email || 'N/A'}</Descriptions.Item>
-              <Descriptions.Item label="Tenant">{telegramPin.tenantId}</Descriptions.Item>
-              <Descriptions.Item label="PIN"><Text code>{telegramPin.codigo}</Text></Descriptions.Item>
-              <Descriptions.Item label="Vence">{new Date(telegramPin.expiraEn).toLocaleString()}</Descriptions.Item>
-              <Descriptions.Item label="Comando Telegram"><Text code>{`/vincular ${telegramPin.codigo}`}</Text></Descriptions.Item>
+              <Descriptions.Item label="Tenant">{telegramPin.tenantId || telegramPin.cobrador?.tenantId}</Descriptions.Item>
+              <Descriptions.Item label="PIN"><Text code>{telegramPin.codigo || 'Aún no generado'}</Text></Descriptions.Item>
+              <Descriptions.Item label="TTL minutos">{telegramPin.ttlMinutos || 'Pendiente'}</Descriptions.Item>
+              <Descriptions.Item label="Vence">{telegramPin.expiraEn ? new Date(telegramPin.expiraEn).toLocaleString() : 'Pendiente'}</Descriptions.Item>
+              <Descriptions.Item label="Comando Telegram">
+                <Text code>{telegramPin.comando || (telegramPin.codigo ? `/vincular ${telegramPin.codigo}` : 'Pendiente')}</Text>
+              </Descriptions.Item>
             </Descriptions>
           </Space>
         )}
