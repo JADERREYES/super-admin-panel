@@ -115,6 +115,41 @@ export const generarPinTelegramCobrador = async (cobradorId) => {
   return response.data;
 };
 
+export const guardarDocumentoIaTenant = async (tenantId, payload) => {
+  const response = await api.post(`/ia/tenants/${tenantId}/documentos`, payload);
+  return response.data;
+};
+
+export const subirPdfIaTenant = async (tenantId, payload) => {
+  const formData = new FormData();
+  formData.append('archivo', payload.archivo);
+  if (payload.titulo) formData.append('titulo', payload.titulo);
+  if (payload.categoria) formData.append('categoria', payload.categoria);
+  if (payload.fuente) formData.append('fuente', payload.fuente);
+
+  const response = await api.post(`/ia/tenants/${tenantId}/documentos/pdf`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const listarDocumentosIaTenant = async (tenantId) => {
+  const response = await api.get(`/ia/tenants/${tenantId}/documentos`);
+  return response.data;
+};
+
+export const eliminarDocumentoIaTenant = async (tenantId, documentoId) => {
+  const response = await api.delete(`/ia/tenants/${tenantId}/documentos/${documentoId}`);
+  return response.data;
+};
+
+export const preguntarIaTenant = async (tenantId, payload) => {
+  const response = await api.post(`/ia/tenants/${tenantId}/preguntar`, payload);
+  return response.data;
+};
+
 // Obtener empresas con pagos pendientes
 export const getEmpresasMorosas = async () => {
   console.log('💰 Solicitando empresas con pagos pendientes...');

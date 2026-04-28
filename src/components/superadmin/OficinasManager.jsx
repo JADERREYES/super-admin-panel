@@ -23,8 +23,10 @@ import {
   DeleteOutlined,
   ShopOutlined,
   CopyOutlined,
-  CheckOutlined
+  CheckOutlined,
+  RobotOutlined
 } from '@ant-design/icons';
+import GestionIaModal from './GestionIaModal';
 import {
   getOficinas,
   crearOficina,
@@ -43,6 +45,7 @@ const OficinasManager = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [credencialesModalVisible, setCredencialesModalVisible] = useState(false);
+  const [iaModalVisible, setIaModalVisible] = useState(false);
   const [selectedOficina, setSelectedOficina] = useState(null);
   const [detalleData, setDetalleData] = useState(null);
   const [nuevasCredenciales, setNuevasCredenciales] = useState(null);
@@ -147,6 +150,11 @@ const OficinasManager = () => {
     }
   };
 
+  const handleGestionarIa = (oficina) => {
+    setSelectedOficina(oficina);
+    setIaModalVisible(true);
+  };
+
   const columns = [
     {
       title: 'Nombre',
@@ -199,6 +207,14 @@ const OficinasManager = () => {
             onClick={() => handleVerDetalle(record)}
           >
             Ver
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<RobotOutlined />}
+            onClick={() => handleGestionarIa(record)}
+          >
+            Gestionar IA
           </Button>
           <Button
             type="link"
@@ -495,6 +511,12 @@ const OficinasManager = () => {
           </Spin>
         )}
       </Modal>
+
+      <GestionIaModal
+        open={iaModalVisible}
+        oficina={selectedOficina}
+        onClose={() => setIaModalVisible(false)}
+      />
 
       <Modal
         title="PIN Telegram generado"
